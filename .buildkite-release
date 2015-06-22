@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+go get github.com/AcalephStorage/kviator
+make clean release VERSION=$RELEASE_VERSION
+
+mkdir ./release
+cp build/tar/* ./release/
+
+$GOPATH/bin/gh-release create AcalephStorage/kviator $RELEASE_VERSION
