@@ -40,7 +40,7 @@ build-all: test
 package: build-all
 	@echo "--> Packaging application"
 	@for arch in ${BUILD_ARCHS}; do \
-		zip -vj build/zip/${APP_NAME}-${VERSION}-$${arch} build/bin/$${arch}/${VERSION}/${APP_NAME} ; \
+		zip -vj build/zip/${APP_NAME}-${VERSION}-$${arch}.zip build/bin/$${arch}/${VERSION}/${APP_NAME} ; \
 	done
 
 release: package
