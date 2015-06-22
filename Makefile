@@ -14,7 +14,7 @@ prepare:
 	done
 	@mkdir -p build/test
 	@mkdir -p build/doc
-	@mkdir -p build/tar
+	@mkdir -p build/zip
 
 format:
 	@echo "--> Formatting source code"
@@ -40,7 +40,7 @@ build-all: test
 package: build-all
 	@echo "--> Packaging application"
 	@for arch in ${BUILD_ARCHS}; do \
-		tar cf build/tar/${APP_NAME}-${VERSION}-$${arch}.tar -C build/bin/$${arch}/${VERSION} ${APP_NAME} ; \
+		zip -vj build/zip/${APP_NAME}-${VERSION}-$${arch} build/bin/$${arch}/${VERSION} ${APP_NAME} ; \
 	done
 
 release: package
@@ -51,7 +51,7 @@ ifeq ($(VERSION) , latest)
 endif
 	@echo "--> Releasing version: ${VERSION}"
 	@for arch in ${BUILD_ARCHS}; do \
-		curl -s -T "build/tar/${APP_NAME}-${VERSION}-$${arch}.tar" -u "${ACCESS_KEY}" "https://api.bintray.com/content/darkcrux/generic/${APP_NAME}/${VERSION}/${APP_NAME}-${VERSION}-$${arch}.tar"; \
+		curl -s -T "build/zip/${APP_NAME}-${VERSION}-$${arch}.zip" -u "${ACCESS_KEY}" "https://api.bintray.com/content/darkcrux/generic/${APP_NAME}/${VERSION}/${APP_NAME}-${VERSION}-$${arch}.tar"; \
 		echo "... $${arch}"; \
 	done
 	@echo "--> Publishing version ${VERSION}"
