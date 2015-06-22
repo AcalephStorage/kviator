@@ -1,42 +1,85 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"time"
 
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
-	"gopkg.in/alecthomas/kingpin.v2"
+)
+
+const (
+	appName = "kviator"
+	version = "0.0.2"
+
+	helpText = `
+	kviator is a cli client for accessing consul, etcd, or zookeper KV.
+
+	Syntax:
+
+	    kviator --kvstore [consul|etcd|zzookeper] --client <kv_addr> <command> <key> [<val>]
+
+	Options:
+	    --kvstore     The kvstore to connect to. Can be consul, etcd, or zookeper.
+	    --client      The url of the kvstore. (eg. localhost:8500)
+
+	Commands:
+	    put           put a key value pair in the kvstore
+	    get           retrieve a key value pair from the kvstore
+	    del           removes a key value pair from the kvstore
+	    cas           put a key value pair in the keystore only when it's empty
+	    exists        returns true when key value pair exists
+
+	Arguments:
+	    key           The key. Required for all commands.
+	    val           The value. required for put and cas.
+	`
 )
 
 var (
-	app     = kingpin.New("kviator", "command line for accessing KV store (consul, etcd, zookeper)")
-	kvstore = app.Flag("kvstore", "the kv storem can be consul, etcd, or zookeper").Required().String()
-	client  = app.Flag("client", "the client address").Required().String()
-
-	put    = app.Command("put", "put data to keystore")
-	putKey = put.Arg("key", "the key").Required().String()
-	putVal = put.Arg("val", "the value").Required().String()
-
-	get    = app.Command("get", "get data from keystore")
-	getKey = get.Arg("key", "the key").Required().String()
-
-	del    = app.Command("del", "delete data from keystore")
-	delKey = del.Arg("key", "the key").Required().String()
-
-	cas    = app.Command("cas", "save only when no key exists")
-	casKey = cas.Arg("key", "the key").Required().String()
-	casVal = cas.Arg("val", "the value").Required().String()
+	kvstore string
+	client  string
 )
 
+func init() {
+	flag.StringVar(&kvstore, "kvstore", "", "the kvstore to connect to. Can be consul, etcd, or zookeper.")
+	flag.StringVar(&client, "client", "", "the client IP address")
+	flag.Usage = help
+	flag.Parse()
+
+	kv := kvstoreConn(kvstore, client)
+
+	switch flag.Arg(0) {
+	case "put":
+		key := flag.Arg(1)
+		val := flag.Arg(2)
+		save(kv, key, val)
+	case "get":
+		key := flag.Arg(1)
+		retrieve(kv, key)
+	case "del":
+		key := flag.Arg(1)
+		delete(kv, key)
+	case "cas":
+		key := flag.Arg(1)
+		val := flag.Arg(2)
+		checkAndSave(kv, key, val)
+	case "exists":
+		key := flag.Arg(1)
+		keyExists(kv, key)
+	}
+
+}
+
 func main() {
-	kingpin.Version("0.1.0")
 
-	cmd := kingpin.MustParse(app.Parse(os.Args[1:]))
+}
 
+func kvstoreConn(kvstore, client string) store.Store {
 	var backend store.Backend
-	switch *kvstore {
+	switch kvstore {
 	case "consul":
 		backend = store.CONSUL
 	case "etcd":
@@ -44,10 +87,9 @@ func main() {
 	case "zookeper":
 		backend = store.ZK
 	}
-
 	kv, err := libkv.NewStore(
 		backend,
-		[]string{*client},
+		[]string{client},
 		&store.Config{
 			ConnectionTimeout: 10 * time.Second,
 		},
@@ -56,17 +98,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-
-	switch cmd {
-	case put.FullCommand():
-		save(kv, *putKey, *putVal)
-	case get.FullCommand():
-		retrieve(kv, *getKey)
-	case del.FullCommand():
-		delete(kv, *delKey)
-	case cas.FullCommand():
-		checkAndSave(kv, *casKey, *casVal)
-	}
+	return kv
 }
 
 func save(kv store.Store, key, val string) {
@@ -107,4 +139,18 @@ func checkAndSave(kv store.Store, key, val string) {
 		fmt.Fprintln(os.Stderr, "key is already set")
 		os.Exit(5)
 	}
+}
+
+func keyExists(kv store.Store, key string) {
+	_, err := kv.Get(key)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "false")
+		os.Exit(7)
+	} else {
+		fmt.Fprintln(os.Stdout, "true")
+	}
+}
+
+func help() {
+	fmt.Fprintf(os.Stdout, "\n\t%s %s\n\n%s\n", appName, version, helpText)
 }
