@@ -69,6 +69,9 @@ func init() {
 	case "exists":
 		key := flag.Arg(1)
 		keyExists(kv, key)
+	default:
+		help()
+		os.Exit(8)
 	}
 
 }
