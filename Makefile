@@ -20,7 +20,11 @@ format:
 	@echo "--> Formatting source code"
 	@go fmt ./...
 
-test: prepare format
+deps:
+	@echo "--> Getting dependencies"
+	@go get ./...
+
+test: prepare format deps
 	@echo "--> Testing application"
 	@go test -outputdir build/test ./...
 
