@@ -7,6 +7,7 @@ all: clean build
 clean:
 	@echo "--> Cleaning build"
 	@rm -rf ./build
+	@rm -rf ./release
 
 prepare:
 	@for arch in ${BUILD_ARCHS}; do \
