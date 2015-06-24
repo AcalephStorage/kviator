@@ -69,7 +69,7 @@ func init() {
 	switch flag.Arg(0) {
 	case "put":
 		key := flag.Arg(1)
-		val := flag.Arg(2)
+		val := strings.Join(flag.Args()[2:], " ")
 		save(kv, key, val)
 	case "get":
 		key := flag.Arg(1)
@@ -79,7 +79,7 @@ func init() {
 		delete(kv, key)
 	case "cas":
 		key := flag.Arg(1)
-		val := flag.Arg(2)
+		val := strings.Join(flag.Args()[2:], " ")
 		checkAndSave(kv, key, val)
 	case "exists":
 		key := flag.Arg(1)
