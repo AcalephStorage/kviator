@@ -4,10 +4,14 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
+
+	"io/ioutil"
 
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
+	"github.com/mgutz/str"
 )
 
 const (
@@ -44,6 +48,17 @@ var (
 )
 
 func init() {
+	// append STDIN data to ARGV
+	stat, err := os.Stdin.Stat()
+	if err == nil {
+		if (stat.Mode() & os.ModeCharDevice) == 0 {
+			extraArgs, _ := ioutil.ReadAll(os.Stdin)
+			args := strings.Replace(string(extraArgs), "\n", "", -1)
+			argv := str.ToArgv(args)
+			os.Args = append(os.Args, argv...)
+		}
+	}
+
 	flag.StringVar(&kvstore, "kvstore", "", "the kvstore to connect to. Can be consul, etcd, or zookeper.")
 	flag.StringVar(&client, "client", "", "the client IP address")
 	flag.Usage = help
