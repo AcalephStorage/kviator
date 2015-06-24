@@ -11,7 +11,6 @@ import (
 
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
-	"github.com/mgutz/str"
 )
 
 const (
@@ -39,6 +38,16 @@ const (
 	Arguments:
 	    key           The key. Required for all commands.
 	    val           The value. required for put and cas.
+
+	Note:
+
+	    kviator can also read the value from Stdin. The syntax would look like this:
+
+	        cmd | kviator ... put -
+	        kviator ... put - < val.file
+
+	    The - character is necessary to force kviator to read from Stdin. Without the -, Stdin
+	    is ignored.
 	`
 )
 
@@ -48,42 +57,31 @@ var (
 )
 
 func init() {
-	// append STDIN data to ARGV
-	stat, err := os.Stdin.Stat()
-	if err == nil {
-		if (stat.Mode() & os.ModeCharDevice) == 0 {
-			extraArgs, _ := ioutil.ReadAll(os.Stdin)
-			args := strings.Replace(string(extraArgs), "\n", "", -1)
-			argv := str.ToArgv(args)
-			os.Args = append(os.Args, argv...)
-		}
-	}
-
 	flag.StringVar(&kvstore, "kvstore", "", "the kvstore to connect to. Can be consul, etcd, or zookeper.")
 	flag.StringVar(&client, "client", "", "the client IP address")
 	flag.Usage = help
 	flag.Parse()
 
-	kv := kvstoreConn(kvstore, client)
-
 	switch flag.Arg(0) {
 	case "put":
 		key := flag.Arg(1)
 		val := strings.Join(flag.Args()[2:], " ")
-		save(kv, key, val)
+		val = parseVal(val)
+		save(key, val)
 	case "get":
 		key := flag.Arg(1)
-		retrieve(kv, key)
+		retrieve(key)
 	case "del":
 		key := flag.Arg(1)
-		delete(kv, key)
+		delete(key)
 	case "cas":
 		key := flag.Arg(1)
 		val := strings.Join(flag.Args()[2:], " ")
-		checkAndSave(kv, key, val)
+		val = parseVal(val)
+		checkAndSave(key, val)
 	case "exists":
 		key := flag.Arg(1)
-		keyExists(kv, key)
+		keyExists(key)
 	default:
 		help()
 		os.Exit(8)
@@ -93,6 +91,22 @@ func init() {
 
 func main() {
 
+}
+
+func parseVal(arg string) string {
+	arg = strings.TrimSpace(arg)
+	if arg == "-" {
+		stat, err := os.Stdin.Stat()
+		if err == nil {
+			if (stat.Mode() & os.ModeCharDevice) == 0 {
+				in, _ := ioutil.ReadAll(os.Stdin)
+				inStr := strings.TrimSuffix(string(in), "\n")
+				inStr = strings.TrimSpace(inStr)
+				return inStr
+			}
+		}
+	}
+	return arg
 }
 
 func kvstoreConn(kvstore, client string) store.Store {
@@ -119,7 +133,8 @@ func kvstoreConn(kvstore, client string) store.Store {
 	return kv
 }
 
-func save(kv store.Store, key, val string) {
+func save(key, val string) {
+	kv := kvstoreConn(kvstore, client)
 	err := kv.Put(key, []byte(val), nil)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -127,7 +142,8 @@ func save(kv store.Store, key, val string) {
 	}
 }
 
-func retrieve(kv store.Store, key string) {
+func retrieve(key string) {
+	kv := kvstoreConn(kvstore, client)
 	kvPair, err := kv.Get(key)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -137,7 +153,8 @@ func retrieve(kv store.Store, key string) {
 	}
 }
 
-func delete(kv store.Store, key string) {
+func delete(key string) {
+	kv := kvstoreConn(kvstore, client)
 	err := kv.Delete(key)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -145,7 +162,8 @@ func delete(kv store.Store, key string) {
 	}
 }
 
-func checkAndSave(kv store.Store, key, val string) {
+func checkAndSave(key, val string) {
+	kv := kvstoreConn(kvstore, client)
 	_, err := kv.Get(key)
 	if err != nil {
 		err := kv.Put(key, []byte(val), nil)
@@ -159,7 +177,8 @@ func checkAndSave(kv store.Store, key, val string) {
 	}
 }
 
-func keyExists(kv store.Store, key string) {
+func keyExists(key string) {
+	kv := kvstoreConn(kvstore, client)
 	_, err := kv.Get(key)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "false")
