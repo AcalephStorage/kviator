@@ -15,7 +15,7 @@ import (
 
 const (
 	appName = "kviator"
-	version = "0.0.4"
+	version = "0.0.5"
 
 	helpText = `
 	kviator is a cli client for accessing consul, etcd, or zookeper KV.
@@ -27,11 +27,14 @@ const (
 	Options:
 	    --kvstore     The kvstore to connect to. Can be consul, etcd, or zookeper.
 	    --client      The url of the kvstore. (eg. localhost:8500)
+	    --show-value  Show the value when using the list command.
 
 	Commands:
 	    put           put a key value pair in the kvstore
 	    get           retrieve a key value pair from the kvstore
 	    del           removes a key value pair from the kvstore
+	    deltree       removes an entire tree structure in the kvstore
+	    list          list all kv of a given subtree/key.
 	    cas           put a key value pair in the keystore only when it's empty
 	    exists        returns true when key value pair exists
 
@@ -52,16 +55,20 @@ const (
 )
 
 var (
-	kvstore string
-	client  string
+	kvstore   string
+	client    string
+	showValue bool
 )
 
 func init() {
 	flag.StringVar(&kvstore, "kvstore", "", "the kvstore to connect to. Can be consul, etcd, or zookeper.")
 	flag.StringVar(&client, "client", "", "the client IP address")
+	flag.BoolVar(&showValue, "show-value", false, "show the value of the listed keys")
 	flag.Usage = help
 	flag.Parse()
+}
 
+func main() {
 	switch flag.Arg(0) {
 	case "put":
 		key := flag.Arg(1)
@@ -74,6 +81,12 @@ func init() {
 	case "del":
 		key := flag.Arg(1)
 		delete(key)
+	case "deltree":
+		key := flag.Arg(1)
+		deleteTree(key)
+	case "list":
+		key := flag.Arg(1)
+		list(key)
 	case "cas":
 		key := flag.Arg(1)
 		val := strings.Join(flag.Args()[2:], " ")
@@ -86,11 +99,6 @@ func init() {
 		help()
 		os.Exit(8)
 	}
-
-}
-
-func main() {
-
 }
 
 func parseVal(arg string) string {
@@ -159,6 +167,41 @@ func delete(key string) {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(4)
+	}
+}
+
+func deleteTree(key string) {
+	if key == "" {
+		fmt.Fprintln(os.Stderr, "Please specify subtree. To delete all, use /.")
+		os.Exit(11)
+	}
+	if key == "/" {
+		key = ""
+	}
+	kv := kvstoreConn(kvstore, client)
+	err := kv.DeleteTree(key)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(10)
+	}
+}
+
+func list(key string) {
+	kv := kvstoreConn(kvstore, client)
+	kvPairs, err := kv.List(key)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(11)
+	}
+	for _, kvPair := range kvPairs {
+		k := kvPair.Key
+		v := string(kvPair.Value)
+		if showValue {
+			fmt.Fprintf(os.Stdout, "%s=%s\n", k, v)
+		} else {
+			fmt.Fprintln(os.Stdout, k)
+		}
+
 	}
 }
 
