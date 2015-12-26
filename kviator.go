@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"io/ioutil"
+	"github.com/coreos/etcd/pkg/transport"
 
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
@@ -31,6 +32,9 @@ const (
 	    --kvstore     The kvstore to connect to. Can be consul, etcd, or zookeper.
 	    --client      The url of the kvstore. (eg. localhost:8500)
 	    --show-value  Show the value when using the list command.
+	    --ca-cert     The CA certificate to use for TLS
+	    --client-cert The Client cert to use for TLS authentication
+	    --client-key  The client key to use for TLS authentication
 
 	Commands:
 	    put           put a key value pair in the kvstore
@@ -60,6 +64,9 @@ const (
 var (
 	kvstore   string
 	client    string
+	caCert    string
+	clientCert string
+	clientKey  string
 	showValue bool
 )
 
@@ -67,6 +74,9 @@ func init() {
 	flag.StringVar(&kvstore, "kvstore", "", "the kvstore to connect to. Can be consul, etcd, or zookeper.")
 	flag.StringVar(&client, "client", "", "the client IP address")
 	flag.BoolVar(&showValue, "show-value", false, "show the value of the listed keys")
+	flag.StringVar(&caCert, "ca-cert", "", "the path to the CA certificate to use for TLS")
+	flag.StringVar(&clientCert, "client-cert", "", "the path to the client certificate to use for TLS")
+	flag.StringVar(&clientKey, "client-key", "", "the path to the client key to use for TLS")
 	flag.Usage = help
 	flag.Parse()
 }
@@ -133,12 +143,37 @@ func kvstoreConn(kvstore, client string) store.Store {
 		backend = store.ZK
 		zookeeper.Register()
 	}
+
+	var cfg store.Config
+
+	if caCert != "" && clientCert != "" && clientKey != "" {
+		var tlsInfo = transport.TLSInfo{
+			CAFile:   caCert,
+			CertFile: clientCert,
+			KeyFile:  clientKey,
+			TrustedCAFile: caCert,
+			ClientCertAuth: true,
+		}
+		t, err := transport.NewTransport(tlsInfo, 10 * time.Second)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+
+		cfg = store.Config{
+			ConnectionTimeout: 10 * time.Second,
+			TLS: t.TLSClientConfig,
+		}
+	} else {
+		cfg = store.Config{
+				ConnectionTimeout: 10 * time.Second,
+			}
+	}
+
 	kv, err := libkv.NewStore(
 		backend,
 		[]string{client},
-		&store.Config{
-			ConnectionTimeout: 10 * time.Second,
-		},
+		&cfg,
 	)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
