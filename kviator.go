@@ -122,10 +122,13 @@ func kvstoreConn(kvstore, client string) store.Store {
 	switch kvstore {
 	case "consul":
 		backend = store.CONSUL
+		consul.Register()
 	case "etcd":
 		backend = store.ETCD
+		etcd.Register()
 	case "zookeper":
 		backend = store.ZK
+		zookeeper.Register()
 	}
 	kv, err := libkv.NewStore(
 		backend,
