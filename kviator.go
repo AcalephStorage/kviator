@@ -11,6 +11,9 @@ import (
 
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
+	"github.com/docker/libkv/store/etcd"
+	"github.com/docker/libkv/store/consul"
+	"github.com/docker/libkv/store/zookeeper"
 )
 
 const (
