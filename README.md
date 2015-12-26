@@ -21,6 +21,12 @@ $ ./kviator --kvstore=consul --client=localhost:8500 get hello
 #=> world
 ```
 
+## TLS support
+
+```
+./kviator --kvstore=etcd --client=127.0.0.1:4001 --ca-cert=/path/to/ssl/ca-cert.pem --client-cert=/path/to/ssl/client-cert.pem --client-key=/path/to/ssl/client-key.pem
+```
+
 ## TODO
 
 - Better README
