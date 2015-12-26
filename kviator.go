@@ -18,7 +18,7 @@ import (
 
 const (
 	appName = "kviator"
-	version = "0.0.5"
+	version = "0.0.6"
 
 	helpText = `
 	kviator is a cli client for accessing consul, etcd, or zookeper KV.
