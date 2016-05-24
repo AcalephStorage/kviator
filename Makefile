@@ -1,8 +1,7 @@
 APP_NAME = kviator
 VERSION = latest
-BUILD_ARCHS=linux-386 linux-amd64 darwin-amd64 freebsd-amd64
 
-all: clean build
+all: clean test
 
 clean:
 	@echo "--> Cleaning build"
@@ -10,9 +9,8 @@ clean:
 	@rm -rf ./release
 
 prepare:
-	@for arch in ${BUILD_ARCHS}; do \
-		mkdir -p build/bin/$${arch}; \
-	done
+	@echo "--> Preparing build"
+	@mkdir -p build/bin/`go env GOOS`/`go env GOARCH`
 	@mkdir -p build/test
 	@mkdir -p build/doc
 	@mkdir -p build/zip
@@ -23,42 +21,16 @@ format:
 
 deps:
 	@echo "--> Getting dependencies"
-	@go get ./...
+	@go get -d -v ./...
 
 test: prepare format deps
 	@echo "--> Testing application"
 	@go test -outputdir build/test ./...
 
-build: test
+build: prepare format deps
 	@echo "--> Building local application"
-	@go build -o build/bin/`uname -s`-`uname -p`/${VERSION}/${APP_NAME} -v .
+	@go build -o build/bin/`go env GOOS`/`go env GOARCH`/${VERSION}/${APP_NAME} -ldflags "-X main.Version=${VERSION}" -v .
 
-build-all: test
-	@echo "--> Building all application"
-	@for arch in ${BUILD_ARCHS}; do \
-		echo "... $${arch}"; \
-		GOOS=`echo $${arch} | cut -d '-' -f 1` \
-		GOARCH=`echo $${arch} | cut -d '-' -f 2` \
-		go build -o build/bin/$${arch}/${VERSION}/${APP_NAME} -v . ; \
-	done
-
-package: build-all
+package: build
 	@echo "--> Packaging application"
-	@for arch in ${BUILD_ARCHS}; do \
-		zip -vj build/zip/${APP_NAME}-${VERSION}-$${arch}.zip build/bin/$${arch}/${VERSION}/${APP_NAME} ; \
-	done
-
-release: package
-ifeq ($(VERSION) , latest)
-	@echo "--> Removing Latest Version"
-	@curl -s -X DELETE -u ${ACCESS_KEY} https://api.bintray.com/packages/darkcrux/generic/${APP_NAME}/versions/${VERSION}
-	@echo
-endif
-	@echo "--> Releasing version: ${VERSION}"
-	@for arch in ${BUILD_ARCHS}; do \
-		curl -s -T "build/zip/${APP_NAME}-${VERSION}-$${arch}.zip" -u "${ACCESS_KEY}" "https://api.bintray.com/content/darkcrux/generic/${APP_NAME}/${VERSION}/${APP_NAME}-${VERSION}-$${arch}.tar"; \
-		echo "... $${arch}"; \
-	done
-	@echo "--> Publishing version ${VERSION}"
-	@curl -s -X POST -u ${ACCESS_KEY} https://api.bintray.com/content/darkcrux/generic/${APP_NAME}/${VERSION}/publish
-	@echo
+	zip -vj build/zip/${APP_NAME}-${VERSION}-`go env GOOS`-`go env GOARCH`.zip build/bin/`go env GOOS`/`go env GOARCH`/${VERSION}/${APP_NAME}

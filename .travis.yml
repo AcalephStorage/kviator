@@ -1,0 +1,20 @@
+language: go
+go:
+- 1.6
+env:
+- GOOS=linux GOARCH=386
+- GOOS=linux GOARCH=amd64
+- GOOS=darwin GOARCH=amd64
+- GOOS=freebsd GOARCH=amd64
+
+before_deploy:
+  - make VERSION=$TRAVIS_TAG package
+
+deploy:
+  provider: releases
+  api_key:
+    secure: Hol0HR6YQrU6eKfrg242jrKVkI7ZSE4+0lF0irIGoWIC2fqW7KUtTcDGdACwZB3V8EAxWpzAqtGl33QZYig3FjfdhELYUV0hG+RBbjCEfmm35ZBgiirUR8aDixtVakmJQg95sMoFGmbT50InaRb4fY2SGJuhHlrkdygq/T3XlieBcN47OpQpPdzvNJ/EIUAxC/fFu44R8NK/rwhL1/9mW6Sq2cEgI1s2iKqbXd7Hp7BD5ZhPlkWKQyTBHKqYb6xoCNnYhijZhv/6CVHGzeQvJ64O93OrL/HnYjbGd+WwJ6/Z4D18VNbAGMr2sLIzO+q6f8tssqtxaxSyvGWIAqT5KFcUamAkHC0eYZxXYi8pVIsnBmW3lLAcBC9WfzEeN3HMbp6gOCLAbnuLuBL2wyW0DVSBoqCAFDjIH/omJ3Fy6OwO910TCW3POcTh+uN5o0lfQgceOQXLqArC1KstgHEz8LJaoQsJeY7YEmAfci4CKU3eT4wZJ9IOYwWkGjL1MTkPY+iAMMee7TGLzZot0RsikpeB9Qz2GIpihsSWOVyVLITgDXJTE+rVPn4wiWifVtv5nI2ARFlD7fq5NZbqjifAjpRk5Vpy26VYZGxNMznx5CXvtullskA821iodNWtLtmvKJcYHaGAn4uWvcggGDObf1lmS3rBkui1LDRDGpkY8Aw=
+  file: build/zip/*
+  on:
+    repo: AcalephStorage/kviator
+    tags: true

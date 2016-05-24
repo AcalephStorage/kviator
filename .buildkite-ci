@@ -1,3 +1,0 @@
-#!/usr/bin/env bash
-go get github.com/AcalephStorage/kviator
-make clean release

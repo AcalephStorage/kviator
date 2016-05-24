@@ -8,66 +8,66 @@ import (
 	"time"
 
 	"io/ioutil"
-	"github.com/coreos/etcd/pkg/transport"
 
+	"github.com/coreos/etcd/pkg/transport"
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
-	"github.com/docker/libkv/store/etcd"
 	"github.com/docker/libkv/store/consul"
+	"github.com/docker/libkv/store/etcd"
 	"github.com/docker/libkv/store/zookeeper"
 )
 
-const (
-	appName = "kviator"
-	version = "0.0.6"
+const helpText = `
+kviator is a cli client for accessing consul, etcd, or zookeper KV.
 
-	helpText = `
-	kviator is a cli client for accessing consul, etcd, or zookeper KV.
+Syntax:
 
-	Syntax:
+	kviator --kvstore [consul|etcd|zzookeper] --client <kv_addr> <command> <key> [<val>]
 
-	    kviator --kvstore [consul|etcd|zzookeper] --client <kv_addr> <command> <key> [<val>]
+Options:
+	--kvstore     The kvstore to connect to. Can be consul, etcd, or zookeper.
+	--client      The url of the kvstore. (eg. localhost:8500)
+	--show-value  Show the value when using the list command.
+	--ca-cert     The CA certificate to use for TLS
+	--client-cert The Client cert to use for TLS authentication
+	--client-key  The client key to use for TLS authentication
 
-	Options:
-	    --kvstore     The kvstore to connect to. Can be consul, etcd, or zookeper.
-	    --client      The url of the kvstore. (eg. localhost:8500)
-	    --show-value  Show the value when using the list command.
-	    --ca-cert     The CA certificate to use for TLS
-	    --client-cert The Client cert to use for TLS authentication
-	    --client-key  The client key to use for TLS authentication
+Commands:
+	put           put a key value pair in the kvstore
+	get           retrieve a key value pair from the kvstore
+	del           removes a key value pair from the kvstore
+	deltree       removes an entire tree structure in the kvstore
+	list          list all kv of a given subtree/key.
+	cas           put a key value pair in the keystore only when it's empty
+	exists        returns true when key value pair exists
 
-	Commands:
-	    put           put a key value pair in the kvstore
-	    get           retrieve a key value pair from the kvstore
-	    del           removes a key value pair from the kvstore
-	    deltree       removes an entire tree structure in the kvstore
-	    list          list all kv of a given subtree/key.
-	    cas           put a key value pair in the keystore only when it's empty
-	    exists        returns true when key value pair exists
+Arguments:
+	key           The key. Required for all commands.
+	val           The value. required for put and cas.
 
-	Arguments:
-	    key           The key. Required for all commands.
-	    val           The value. required for put and cas.
+Note:
 
-	Note:
+	kviator can also read the value from Stdin. The syntax would look like this:
 
-	    kviator can also read the value from Stdin. The syntax would look like this:
+		cmd | kviator ... put -
+		kviator ... put - < val.file
 
-	        cmd | kviator ... put -
-	        kviator ... put - < val.file
+	The - character is necessary to force kviator to read from Stdin. Without the -, Stdin
+	is ignored.
+`
 
-	    The - character is necessary to force kviator to read from Stdin. Without the -, Stdin
-	    is ignored.
-	`
+var (
+	AppName = "kviator"
+	Version = "dev"
 )
 
 var (
-	kvstore   string
-	client    string
-	caCert    string
+	kvstore    string
+	client     string
+	caCert     string
 	clientCert string
 	clientKey  string
-	showValue bool
+	showValue  bool
 )
 
 func init() {
@@ -148,13 +148,13 @@ func kvstoreConn(kvstore, client string) store.Store {
 
 	if caCert != "" && clientCert != "" && clientKey != "" {
 		var tlsInfo = transport.TLSInfo{
-			CAFile:   caCert,
-			CertFile: clientCert,
-			KeyFile:  clientKey,
-			TrustedCAFile: caCert,
+			CAFile:         caCert,
+			CertFile:       clientCert,
+			KeyFile:        clientKey,
+			TrustedCAFile:  caCert,
 			ClientCertAuth: true,
 		}
-		t, err := transport.NewTransport(tlsInfo, 10 * time.Second)
+		t, err := transport.NewTransport(tlsInfo, 10*time.Second)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
@@ -162,12 +162,12 @@ func kvstoreConn(kvstore, client string) store.Store {
 
 		cfg = store.Config{
 			ConnectionTimeout: 10 * time.Second,
-			TLS: t.TLSClientConfig,
+			TLS:               t.TLSClientConfig,
 		}
 	} else {
 		cfg = store.Config{
-				ConnectionTimeout: 10 * time.Second,
-			}
+			ConnectionTimeout: 10 * time.Second,
+		}
 	}
 
 	kv, err := libkv.NewStore(
@@ -273,5 +273,5 @@ func keyExists(key string) {
 }
 
 func help() {
-	fmt.Fprintf(os.Stdout, "\n\t%s %s\n\n%s\n", appName, version, helpText)
+	fmt.Fprintf(os.Stdout, "\n\t%s %s\n\n%s\n", AppName, Version, helpText)
 }
