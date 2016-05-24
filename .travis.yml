@@ -1,5 +1,8 @@
 language: go
 
+go:
+  - 1.6
+
 before_deploy:
   - GOOS=linux GOARCH=386 make VERSION=$TRAVIS_TAG package
   - GOOS=linux GOARCH=amd64 make VERSION=$TRAVIS_TAG package
