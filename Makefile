@@ -1,7 +1,7 @@
 APP_NAME = kviator
 VERSION = latest
 
-all: clean test
+all: package
 
 clean:
 	@echo "--> Cleaning build"
@@ -29,8 +29,8 @@ test: prepare format deps
 
 build: prepare format deps
 	@echo "--> Building local application"
-	@go build -o build/bin/`go env GOOS`/`go env GOARCH`/${VERSION}/${APP_NAME} -ldflags "-X main.Version=${VERSION}" -v .
+	@go build -o build/bin/`go env GOOS`/`go env GOARCH`/${VERSION}/${APP_NAME} -ldflags "-X main.version=${VERSION}" -v .
 
 package: build
 	@echo "--> Packaging application"
-	zip -vj build/zip/${APP_NAME}-${VERSION}-`go env GOOS`-`go env GOARCH`.zip build/bin/`go env GOOS`/`go env GOARCH`/${VERSION}/${APP_NAME}
+	@zip -vj build/zip/${APP_NAME}-${VERSION}-`go env GOOS`-`go env GOARCH`.zip build/bin/`go env GOOS`/`go env GOARCH`/${VERSION}/${APP_NAME}
