@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"encoding/base64"
 	"io/ioutil"
 
 	"github.com/coreos/etcd/pkg/transport"
@@ -31,6 +32,7 @@ Options:
 	--ca-cert     The CA certificate to use for TLS
 	--client-cert The Client cert to use for TLS authentication
 	--client-key  The client key to use for TLS authentication
+	--binary      Stores/Retrieves values as binary
 
 Commands:
 	put           put a key value pair in the kvstore
@@ -57,8 +59,8 @@ Note:
 `
 
 var (
-	AppName = "kviator"
-	Version = "dev"
+	appName = "kviator"
+	version = "dev"
 )
 
 var (
@@ -68,6 +70,7 @@ var (
 	clientCert string
 	clientKey  string
 	showValue  bool
+	binary     bool
 )
 
 func init() {
@@ -77,6 +80,7 @@ func init() {
 	flag.StringVar(&caCert, "ca-cert", "", "the path to the CA certificate to use for TLS")
 	flag.StringVar(&clientCert, "client-cert", "", "the path to the client certificate to use for TLS")
 	flag.StringVar(&clientKey, "client-key", "", "the path to the client key to use for TLS")
+	flag.BoolVar(&binary, "binary", false, "store/retrieve binary values")
 	flag.Usage = help
 	flag.Parse()
 }
@@ -86,8 +90,8 @@ func main() {
 	case "put":
 		key := flag.Arg(1)
 		val := strings.Join(flag.Args()[2:], " ")
-		val = parseVal(val)
-		save(key, val)
+		byteVal := parseVal(val)
+		save(key, byteVal)
 	case "get":
 		key := flag.Arg(1)
 		retrieve(key)
@@ -103,8 +107,8 @@ func main() {
 	case "cas":
 		key := flag.Arg(1)
 		val := strings.Join(flag.Args()[2:], " ")
-		val = parseVal(val)
-		checkAndSave(key, val)
+		byteVal := parseVal(val)
+		checkAndSave(key, byteVal)
 	case "exists":
 		key := flag.Arg(1)
 		keyExists(key)
@@ -114,20 +118,30 @@ func main() {
 	}
 }
 
-func parseVal(arg string) string {
+func parseVal(arg string) []byte {
 	arg = strings.TrimSpace(arg)
 	if arg == "-" {
 		stat, err := os.Stdin.Stat()
 		if err == nil {
 			if (stat.Mode() & os.ModeCharDevice) == 0 {
-				in, _ := ioutil.ReadAll(os.Stdin)
+				in, err := ioutil.ReadAll(os.Stdin)
+				if err != nil {
+					fmt.Fprintln(os.Stderr, err)
+					os.Exit(9)
+				}
+				if binary {
+					lenOut := base64.URLEncoding.EncodedLen(len(in))
+					out := make([]byte, lenOut)
+					base64.URLEncoding.Encode(out, in)
+					return out
+				}
 				inStr := strings.TrimSuffix(string(in), "\n")
 				inStr = strings.TrimSpace(inStr)
-				return inStr
+				return []byte(inStr)
 			}
 		}
 	}
-	return arg
+	return []byte(arg)
 }
 
 func kvstoreConn(kvstore, client string) store.Store {
@@ -182,9 +196,9 @@ func kvstoreConn(kvstore, client string) store.Store {
 	return kv
 }
 
-func save(key, val string) {
+func save(key string, val []byte) {
 	kv := kvstoreConn(kvstore, client)
-	err := kv.Put(key, []byte(val), nil)
+	err := kv.Put(key, val, nil)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
@@ -198,7 +212,18 @@ func retrieve(key string) {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(3)
 	} else {
-		fmt.Fprintln(os.Stdout, string(kvPair.Value))
+		in := kvPair.Value
+		if binary {
+			lenOut := base64.URLEncoding.DecodedLen(len(in))
+			out := make([]byte, lenOut)
+			base64.URLEncoding.Decode(out, in)
+			if _, err := os.Stdout.Write(out); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(12)
+			}
+			return
+		}
+		fmt.Fprintln(os.Stdout, string(in))
 	}
 }
 
@@ -236,9 +261,11 @@ func list(key string) {
 	}
 	for _, kvPair := range kvPairs {
 		k := kvPair.Key
-		v := string(kvPair.Value)
+		v := kvPair.Value
 		if showValue {
-			fmt.Fprintf(os.Stdout, "%s=%s\n", k, v)
+			fmt.Fprintf(os.Stdout, "%s=", k)
+			os.Stdout.Write(v)
+			fmt.Println()
 		} else {
 			fmt.Fprintln(os.Stdout, k)
 		}
@@ -246,11 +273,11 @@ func list(key string) {
 	}
 }
 
-func checkAndSave(key, val string) {
+func checkAndSave(key string, val []byte) {
 	kv := kvstoreConn(kvstore, client)
 	_, err := kv.Get(key)
 	if err != nil {
-		err := kv.Put(key, []byte(val), nil)
+		err := kv.Put(key, val, nil)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(6)
@@ -273,5 +300,5 @@ func keyExists(key string) {
 }
 
 func help() {
-	fmt.Fprintf(os.Stdout, "\n\t%s %s\n\n%s\n", AppName, Version, helpText)
+	fmt.Fprintf(os.Stdout, "\n\t%s %s\n\n%s\n", appName, version, helpText)
 }
